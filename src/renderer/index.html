@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:">
+<title>Claude Swarm</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 7.5v10a1.5 1.5 0 0 0 1.5 1.5h14a1.5 1.5 0 0 0 1.5-1.5v-8A1.5 1.5 0 0 0 19 8h-7.2a1 1 0 0 1-.8-.4L9.9 6.1a1.5 1.5 0 0 0-1.2-.6H5A1.5 1.5 0 0 0 3.5 7v.5Z"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
+  <symbol id="i-stop" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="6.5" y="6.5" width="11" height="11" rx="1.5"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></symbol>
+  <symbol id="i-board" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="4" width="9" height="16" rx="1.5"/><rect x="15.5" y="4" width="4.5" height="6.5" rx="1.2"/><rect x="15.5" y="13.5" width="4.5" height="6.5" rx="1.2"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 6l-6 6 6 6"/></symbol>
+</svg>
+
+<div class="app">
+  <aside class="side">
+    <div class="side-head"><span class="mark"></span><span class="brand">Claude Swarm</span></div>
+    <nav class="side-nav">
+      <button class="nav-item" data-view="board"><svg><use href="#i-board"/></svg>Board<span class="dot" id="nav-cmd-dot" data-s="idle"></span></button>
+    </nav>
+    <div class="side-section"><span>Workers <span id="nav-count"></span></span><button id="btn-new" class="icon" title="New worker (Ctrl+N)"><svg><use href="#i-plus"/></svg></button></div>
+    <div id="side-list" class="side-list"></div>
+    <div class="side-foot">
+      <p id="status" class="statusline"><span>checking the claude CLI…</span></p>
+      <button id="btn-settings" class="icon" title="Settings"><svg><use href="#i-sliders"/></svg></button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div id="banner" class="banner" hidden></div>
+
+    <!-- Board: commander (big) next to the workers (small) -->
+    <section id="view-board" class="view board">
+      <div class="board-commander">
+        <header class="toolbar">
+          <h2>Commander</h2>
+          <span id="cmd-pill" class="pill" data-s="idle"><span class="dot" data-s="idle"></span><span id="cmd-pill-text">idle</span></span>
+          <span id="cmd-cwd" class="cwd" title=""></span>
+          <span class="spacer"></span>
+          <button id="cmd-folder" class="ghost" title="Change workspace folder"><svg><use href="#i-folder"/></svg>Workspace</button>
+          <button id="cmd-stop" class="ghost danger" hidden><svg><use href="#i-stop"/></svg>Stop</button>
+        </header>
+        <div id="cmd-setup" class="cmd-setup" hidden>
+          <h2>Say what you want built. The commander runs the workers.</h2>
+          <p>Pick a workspace folder first. New projects go into subfolders of it. The commander splits your request into worker sessions, starts them, waits for them and reports back here. The workers show up on the right as they start.</p>
+          <button id="cmd-pick" class="accent"><svg><use href="#i-folder"/></svg>Choose workspace folder</button>
+        </div>
+        <div id="cmd-chat" class="chat"></div>
+        <footer id="cmd-footer" class="composer">
+          <textarea id="cmd-input" rows="3" placeholder="What should get built? Ctrl+Enter sends."></textarea>
+          <div class="col"><button id="cmd-send" class="accent" title="Send (Ctrl+Enter)"><svg><use href="#i-send"/></svg>Send</button></div>
+        </footer>
+      </div>
+
+      <div class="board-workers">
+        <header class="toolbar">
+          <h2>Workers</h2>
+          <span id="ov-summary" class="stat"></span>
+          <span class="spacer"></span>
+          <button id="btn-stop-all" class="ghost danger" title="Stop every running session"><svg><use href="#i-stop"/></svg>Stop all</button>
+        </header>
+        <div class="broadcast">
+          <input id="broadcast-input" type="text" placeholder="Prompt every idle worker…">
+          <button id="broadcast-send">Send</button>
+        </div>
+        <div id="grid" class="grid"></div>
+        <div id="empty" class="empty" hidden>
+          <h2>No workers yet</h2>
+          <p>Ask the commander and they appear here, or add one with the + in the sidebar.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- One worker, full size -->
+    <section id="view-worker" class="view" hidden>
+      <header class="toolbar">
+        <button id="wk-back" class="icon" title="Back to the board (Esc)"><svg><use href="#i-back"/></svg></button>
+        <h2 id="wk-name"></h2>
+        <span id="wk-pill" class="pill" data-s="idle"><span class="dot" data-s="idle"></span><span id="wk-pill-text">idle</span></span>
+        <span id="wk-meta" class="stat"></span>
+        <span id="wk-cwd" class="cwd" title=""></span>
+        <span class="spacer"></span>
+        <span id="wk-stats" class="stat"></span>
+        <button id="wk-open" class="ghost" title="Open folder"><svg><use href="#i-folder"/></svg>Folder</button>
+        <button id="wk-stop" class="ghost danger" hidden><svg><use href="#i-stop"/></svg>Stop</button>
+        <button id="wk-remove" class="icon" title="Remove worker"><svg><use href="#i-x"/></svg></button>
+      </header>
+      <div id="wk-log-host" class="transcript"></div>
+      <footer class="composer">
+        <textarea id="wk-input" rows="2" placeholder="Prompt this worker. Ctrl+Enter sends."></textarea>
+        <div class="col"><button id="wk-send" class="accent" title="Send (Ctrl+Enter)"><svg><use href="#i-send"/></svg>Send</button></div>
+      </footer>
+    </section>
+  </main>
+</div>
+
+<dialog id="dlg-new">
+  <form method="dialog" id="form-new">
+    <h2>New worker</h2>
+    <label><span>Name</span><input name="name" required maxlength="40"></label>
+    <label><span>Folder</span>
+      <div class="row">
+        <input name="cwd" required placeholder="/path/to/project">
+        <button type="button" id="btn-browse"><svg><use href="#i-folder"/></svg>Browse</button>
+      </div>
+    </label>
+    <label class="check"><input type="checkbox" name="worktree"> Work in a fresh git worktree and branch (folder must be a git repo)</label>
+    <label><span>Permissions</span>
+      <select name="permissionMode">
+        <option value="acceptEdits">acceptEdits: edit files freely, no shell commands</option>
+        <option value="bypassPermissions">bypassPermissions: also run commands (install, build, test)</option>
+        <option value="plan">plan: read only, write a plan</option>
+        <option value="default">default: tools that need approval are refused</option>
+      </select>
+    </label>
+    <label><span>Model</span>
+      <select name="model">
+        <option value="">Account default</option>
+        <option value="opus">Opus</option>
+        <option value="sonnet">Sonnet</option>
+        <option value="haiku">Haiku</option>
+      </select>
+    </label>
+    <label><span>First prompt, optional</span><textarea name="prompt" rows="3" placeholder="What should this worker start on?"></textarea></label>
+    <p id="new-error" class="error" hidden></p>
+    <menu>
+      <button type="button" class="ghost" id="btn-new-cancel">Cancel</button>
+      <button type="submit" class="accent">Create worker</button>
+    </menu>
+  </form>
+</dialog>
+
+<dialog id="dlg-settings">
+  <form method="dialog" id="form-settings">
+    <h2>Settings</h2>
+    <label><span>Path to the claude CLI, empty to auto-detect</span><input name="claudePath" placeholder="claude"></label>
+    <label class="check"><input type="checkbox" name="requireMax"> Require a Claude Max subscription before starting sessions</label>
+    <label class="check"><input type="checkbox" name="closeToTray"> Closing the window keeps the app running in the tray</label>
+    <label class="check" id="row-login"><input type="checkbox" name="startWithWindows"> Start at login</label>
+    <p class="hint">Sessions, logs and settings live in your per-user app data folder. The app only ever runs the official <code>claude</code> CLI with your own login. Shortcuts: <kbd>Ctrl+N</kbd> new worker, <kbd>Ctrl+1</kbd> board, <kbd>Ctrl+2</kbd> focus the commander, <kbd>Esc</kbd> back to the board.</p>
+    <menu>
+      <button type="button" class="ghost" id="btn-settings-cancel">Cancel</button>
+      <button type="submit" class="accent">Save</button>
+    </menu>
+  </form>
+</dialog>
+
+<dialog id="dlg-remove">
+  <form method="dialog" id="form-remove">
+    <h2>Remove this worker?</h2>
+    <p id="remove-text" class="hint"></p>
+    <label class="check" id="remove-wt-row" hidden><input type="checkbox" name="deleteWorktree"> Also delete its git worktree and branch</label>
+    <menu>
+      <button type="button" class="ghost" id="btn-remove-cancel">Keep it</button>
+      <button type="submit" class="danger">Remove</button>
+    </menu>
+  </form>
+</dialog>
+
+<template id="tpl-card">
+  <article class="card" data-status="idle">
+    <header>
+      <span class="dot" data-s="idle"></span>
+      <span class="name"></span>
+      <span class="spacer"></span>
+      <span class="stats"></span>
+    </header>
+    <div class="body"></div>
+  </article>
+</template>
+
+<template id="tpl-side-item">
+  <button class="side-item"><span class="dot" data-s="idle"></span><span class="name"></span><span class="sub"></span></button>
+</template>
+
+<script src="app.js"></script>
+</body>
+</html>
