@@ -128,3 +128,7 @@ Sessions, settings and per-session logs are stored in the per-user app data fold
   icons, menu) are written to the platform APIs but have not yet been exercised on those systems.
 - This is for your own machine and your own account. Do not route other people's usage through
   your login.
+
+## License
+
+MIT. See [LICENSE](LICENSE).

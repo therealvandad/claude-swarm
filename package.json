@@ -4,7 +4,9 @@
   "version": "0.1.0",
   "description": "Run and watch many Claude Code sessions side by side, from one window and a tray icon.",
   "main": "src/main.js",
-  "author": "Claude Swarm",
+  "author": "therealvandad",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "https://github.com/therealvandad/claude-swarm.git" },
   "private": true,
   "scripts": {
     "start": "electron .",
